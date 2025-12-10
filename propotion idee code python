@@ -1,0 +1,149 @@
+import csv
+import os
+import uuid
+import time
+from datetime import datetime, timedelta
+from dateutil import tz
+import bcrypt
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+USERS_CSV = os.path.join(DATA_DIR, "users.csv")
+SECURITY_LOGS_CSV = os.path.join(DATA_DIR, "security_logs.csv")
+
+SESSION_TTL_MINUTES = 60  # durée de session
+PASSWORD_MIN_LENGTH = 12
+
+def ensure_data_files():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(USERS_CSV):
+        with open(USERS_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["username", "password_hash", "created_at", "role"])
+        # compte par défaut (admin / admin123) — à changer en prod
+        default_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        with open(USERS_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["admin", default_hash, datetime.utcnow().isoformat(), "admin"])
+
+    if not os.path.exists(SECURITY_LOGS_CSV):
+        with open(SECURITY_LOGS_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["timestamp", "level", "event", "username", "details"])
+
+def log_security(level, event, username="", details=""):
+    with open(SECURITY_LOGS_CSV, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([datetime.utcnow().isoformat(), level, event, username, details])
+
+class AuthService:
+    def __init__(self):
+        ensure_data_files()
+        # sessions: token -> {username, expires_at}
+        self.sessions = {}
+
+    # --- utils internes ---
+    def _load_user(self, username):
+        with open(USERS_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row["username"] == username:
+                    return row
+        return None
+
+    def _save_user(self, username, password_hash, role="user"):
+        with open(USERS_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([username, password_hash, datetime.utcnow().isoformat(), role])
+
+    def _generate_session(self, username):
+        token = uuid.uuid4().hex
+        expires = datetime.utcnow() + timedelta(minutes=SESSION_TTL_MINUTES)
+        self.sessions[token] = {"username": username, "expires_at": expires}
+        return token
+
+    def _is_session_valid(self, token):
+        data = self.sessions.get(token)
+        if not data:
+            return False
+        if datetime.utcnow() >= data["expires_at"]:
+            self.sessions.pop(token, None)
+            return False
+        return True
+
+    def _invalidate_session(self, token):
+        self.sessions.pop(token, None)
+
+    # --- API publique ---
+    def register_user(self, username, password):
+        # validation basique
+        if not username or not password:
+            return {"ok": False, "error": "Nom d'utilisateur et mot de passe requis."}
+        if len(password) < PASSWORD_MIN_LENGTH:
+            return {"ok": False, "error": f"Mot de passe trop court (≥ {PASSWORD_MIN_LENGTH})."}
+
+        if self._load_user(username):
+            log_security("WARN", "register_conflict", username, "user_exists")
+            return {"ok": False, "error": "Utilisateur déjà existant."}
+
+        # hachage bcrypt (salt intégré)
+        password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        self._save_user(username, password_hash)
+        log_security("INFO", "register_success", username, "")
+        return {"ok": True}
+
+    def login(self, username, password):
+        user = self._load_user(username)
+        # réponse uniforme pour éviter les oracle d’utilisateur
+        time.sleep(0.05)  # léger délai constant (mitigation timing)
+        if not user:
+            log_security("WARN", "login_failed", username, "user_not_found")
+            return {"ok": False, "error": "Identifiants invalides."}
+
+        stored_hash = user["password_hash"].encode("utf-8")
+        try:
+            if bcrypt.checkpw(password.encode("utf-8"), stored_hash):
+                token = self._generate_session(username)
+                log_security("INFO", "login_success", username, "")
+                return {"ok": True, "token": token, "role": user.get("role", "user")}
+        except Exception as e:
+            log_security("ERROR", "bcrypt_error", username, str(e))
+            return {"ok": False, "error": "Erreur interne."}
+
+        log_security("WARN", "login_failed", username, "bad_password")
+        return {"ok": False, "error": "Identifiants invalides."}
+
+    def logout(self, token):
+        self._invalidate_session(token)
+        log_security("INFO", "logout", "", "")
+        return {"ok": True}
+
+    def me(self, token):
+        if not self._is_session_valid(token):
+            return {"ok": False, "error": "Session invalide ou expirée."}
+        return {"ok": True, "username": self.sessions[token]["username"]}
+
+    # --- vérification force / compromis (stubs à brancher) ---
+    def check_password_strength(self, password):
+        # Exemple minimal: longueur + diversité
+        categories = sum([
+            any(c.islower() for c in password),
+            any(c.isupper() for c in password),
+            any(c.isdigit() for c in password),
+            any(c in "!@#$%^&*()-_=+[]{};:,./?~" for c in password),
+        ])
+        score = len(password) >= PASSWORD_MIN_LENGTH and categories >= 3
+        return {"ok": True, "strong": bool(score)}
+
+    def check_password_compromised(self, password):
+        # Option 1: fichier local (compromised_passwords.txt)
+        local_file = os.path.join(DATA_DIR, "compromised_passwords.txt")
+        compromised = False
+        if os.path.exists(local_file):
+            with open(local_file, "r", encoding="utf-8") as f:
+                compromised_list = set(line.strip() for line in f if line.strip())
+            compromised = password in compromised_list
+
+        # Option 2 (recommandée): Pwned Passwords API (K-Anonymity)
+        # -> à implémenter côté réseau pour éviter d’envoyer le mot de passe brut
+
+        return {"ok": True, "compromised": compromised}
