@@ -55,4 +55,50 @@ Mettre en place un CI/CD sécurisé (GitHub Actions + scans automatiques).
 
 Prévoir un mode production (SQLite ou PostgreSQL au lieu de CSV pour plus de robustesse).
 
-👉 Veux-tu que je prépare un exemple de code Python pour le module d’authentification sécurisé (avec bcrypt + gestion des sessions), afin que tu puisses comparer avec ton implémentation actuelle ?
+🔐 Sécurité avancée
+Rate limiting / anti-bruteforce : limiter les tentatives de login par IP ou par utilisateur.
+
+2FA (authentification à deux facteurs) : par code TOTP (Google Authenticator) ou par email/SMS.
+
+Chiffrement des données sensibles : au-delà des mots de passe, chiffrer les fichiers CSV contenant des informations clients.
+
+Sécurité front-end : ajouter une politique CSP (Content Security Policy) stricte dans l’HTML pour éviter les injections JS.
+
+⚙️ DevOps / CI-CD
+Pipeline CI/CD : intégration continue avec GitHub Actions ou GitLab CI pour lancer automatiquement :
+
+Tests unitaires (pytest)
+
+Analyse statique (Bandit, Pylint, Safety)
+
+Build et packaging
+
+Déploiement automatisé : Dockeriser l’application pour un déploiement reproductible et sécurisé.
+
+📊 Observabilité
+Monitoring : intégrer Prometheus/Grafana pour suivre les métriques (nombre de connexions, erreurs, temps de réponse).
+
+Alerting : notifications en cas d’échec répété de login ou de tentative suspecte.
+
+Audit trail enrichi : inclure IP, User-Agent, et horodatage précis dans security_logs.csv.
+
+🗄️ Données & Scalabilité
+Migration vers une base SQL : SQLite pour local, PostgreSQL pour production.
+
+ORM (SQLAlchemy) : meilleure gestion des données et validations automatiques.
+
+Indexation et recherche : ajouter un moteur de recherche interne (par nom, catégorie, prix).
+
+🎨 Expérience utilisateur
+Dashboard admin : statistiques en temps réel (produits les plus vendus, clients actifs).
+
+Notifications : pop-ups ou emails pour commandes validées, stocks faibles.
+
+Internationalisation (i18n) : support multilingue (FR/EN).
+
+🛡️ Gouvernance DevSecOps
+Threat modeling : identifier les menaces potentielles (injections, XSS, CSRF).
+
+Tests de pénétration automatisés : intégrer OWASP ZAP dans le pipeline.
+
+Politique de gestion des secrets : utiliser un gestionnaire (Vault, AWS Secrets Manager) au lieu de stocker en clair
