@@ -9,3 +9,12 @@ Module	Description	Poids dans le code	Exemple de lignes
 7. Sécurité & Audit	Bandit, Pylint, Safety, logs	~10%	60–80 lignes
 
 Total : environ 600–800 lignes de Python pour une version complète, sans compter l’HTML/JS.
+
+🎯 Idée pratique
+Produits + Authentification = cœur de l’application (≈45% du code).
+
+Interface + API REST = couche d’accès (≈25%).
+
+Sécurité/Audit + Vérification mots de passe = couche de protection (≈20%).
+
+Commandes/Stats = fonctionnalités annexes (≈10%).
