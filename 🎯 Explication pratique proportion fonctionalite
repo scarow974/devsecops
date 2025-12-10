@@ -1,0 +1,7 @@
+le  README.md sert de plan directeur : chaque module correspond à un bloc de code identifiable.
+
+Les proportions montrent où se concentre l’effort : la logique métier (CRUD, commandes) et la sécurité (auth, audit) sont les plus lourdes.
+
+L’interface (pywebview) est moins volumineuse mais critique, car elle relie tout.
+
+Les données (CSV) sont simples mais omniprésentes, chaque module y accède. 
