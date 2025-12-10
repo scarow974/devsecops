@@ -1,0 +1,11 @@
+📊 Répartition typique du code (proportion estimée)
+Module	Description	Poids dans le code	Exemple de lignes
+1. Gestion des Produits (CRUD CSV)	Fonctions get_products, add_product, update_product, delete_product	~25%	150–200 lignes
+2. Authentification Sécurisée	Login, register, logout, hachage bcrypt/SHA-256 + salt	~20%	120–150 lignes
+3. Vérification Mots de Passe	Force, compromis, génération sécurisée	~10%	60–80 lignes
+4. Interface Graphique (pywebview)	API exposée, intégration HTML/JS	~15%	100–120 lignes
+5. Commandes & Statistiques	Gestion des commandes, calculs, stats	~10%	60–80 lignes
+6. API REST	Endpoints exposés via pywebview	~10%	60–80 lignes
+7. Sécurité & Audit	Bandit, Pylint, Safety, logs	~10%	60–80 lignes
+
+Total : environ 600–800 lignes de Python pour une version complète, sans compter l’HTML/JS.
