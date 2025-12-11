@@ -1,0 +1,15 @@
+import hashlib, requests
+
+def check_pwned(password):
+    sha1pwd = hashlib.sha1(password.encode()).hexdigest().upper()
+    prefix, suffix = sha1pwd[:5], sha1pwd[5:]
+    url = f"https://api.pwnedpasswords.com/range/{prefix}"
+    res = requests.get(url)
+    for line in res.text.splitlines():
+        hash_suffix, count = line.split(":")
+        if hash_suffix == suffix:
+            return True, count
+    return False, 0
+
+# Exemple
+print(check_pwned("password"))
