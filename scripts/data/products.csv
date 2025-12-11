@@ -1,0 +1,9 @@
+id,name,description,price,stock,category,image_url,seller_id,created_at,active
+1,MacBook Pro 13,"Ordinateur portable Apple avec puce M3 Pro, 18Go RAM, 512Go SSD.",2499.99,13,Informatique,https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400,2,2025-12-11T20:38:23.399331,true
+2,iPhone 15 Pro,"Smartphone Apple dernière génération avec titane, puce A17 Pro.",1199.99,25,Smartphones,https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400,2,2025-12-11T20:38:23.406840,true
+3,Sony WH-1000XM5,"Casque audio sans fil avec réduction de bruit active, autonomie 30h.",379.99,29,Audio,https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400,2,2025-12-11T20:38:23.413224,true
+4,Samsung Galaxy Tab S9,"Tablette Android haut de gamme avec écran AMOLED 11"", S Pen inclus.",899.99,20,Tablettes,https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400,2,2025-12-11T20:38:23.420081,true
+5,Nintendo Switch OLED,"Console de jeu portable avec écran OLED 7"", dock inclus.",349.99,39,Gaming,https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=400,2,2025-12-11T20:38:23.427701,true
+6,Dyson V15 Detect,Aspirateur sans fil avec laser pour détecter la poussière.,699.99,12,Maison,https://images.unsplash.com/photo-1558317374-067fb5f30001?w=400,2,2025-12-11T20:38:23.435974,true
+7,Montre Garmin Fenix 7,"Montre GPS multisports avec cartes TopoActive, autonomie 18 jours.",699.99,17,Sport,https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400,2,2025-12-11T20:38:23.444444,true
+8,Canon EOS R6 Mark II,"Appareil photo hybride plein format 24.2MP, vidéo 4K 60fps.",2499.99,8,Photo,https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400,2,2025-12-11T20:38:23.452732,true

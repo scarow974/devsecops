@@ -1,0 +1,2 @@
+id,user_id,products,total,status,shipping_address,created_at,updated_at
+1,3,"[{'id': '1', 'name': 'MacBook Pro 13', 'price': '2499.99', 'quantity': 2}, {'id': '3', 'name': 'Sony WH-1000XM5', 'price': '379.99', 'quantity': 1}, {'id': '7', 'name': 'Montre Garmin Fenix 7', 'price': '699.99', 'quantity': 1}, {'id': '5', 'name': 'Nintendo Switch OLED', 'price': '349.99', 'quantity': 1}]",6429.95,cancelled,12 rue de Paris,2025-12-11T20:42:43.060743,2025-12-11T20:46:20.215906
