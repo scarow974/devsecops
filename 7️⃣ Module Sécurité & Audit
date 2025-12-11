@@ -1,3 +1,0 @@
-bandit -r .
-pylint produits.py
-safety check
