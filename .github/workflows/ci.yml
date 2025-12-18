@@ -1,0 +1,42 @@
+name: DevSecOps checks (pylint, bandit, safety)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  devsecops:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Récupère ton code sur la machine GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2) Installe Python (choisis la version que tu veux)
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 3) Met à jour pip et installe les outils
+      - name: Install tools
+        run: |
+          python -m pip install -U pip
+          pip install -U pylint bandit safety
+
+      # 4) Lance Pylint (qualité)
+      - name: Run pylint
+        run: |
+          pylint .
+
+      # 5) Lance Bandit (sécurité code)
+      - name: Run bandit
+        run: |
+          # -r = récursif [web:38]
+          bandit -r .
+
+      # 6) Lance Safety (sécurité dépendances)
+      - name: Run safety
+        run: |
+          safety scan
