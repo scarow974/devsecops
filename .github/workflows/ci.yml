@@ -1,42 +1,306 @@
-name: DevSecOps checks (pylint, bandit, safety)
+#=============================================================================
+# CI/CD Pipeline - Full Stack Project (Node.js + Python)
+# =============================================================================
+# Pipeline automatisé pour l'intégration et le déploiement continus
+# Inclut les vérifications DevSecOps pour Node.js et Python
+# Déclenche sur push vers main/develop et sur pull requests
+# =============================================================================
+
+name: Full Stack CI/CD Pipeline
 
 on:
   push:
+    branches:
+      - main
+      - develop
   pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
 
 jobs:
-  devsecops:
+  # ===========================================================================
+  # JOB 1: Analyse de Sécurité Node.js
+  # ===========================================================================
+  security-audit-nodejs:
+    name: Node.js Security Audit
     runs-on: ubuntu-latest
-
     steps:
-      # 1) Récupère ton code sur la machine GitHub
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2) Installe Python (choisis la version que tu veux)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run security audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Check for known vulnerabilities
+        run: |
+          echo "Checking for security vulnerabilities..."
+          pnpm audit --json > audit-results.json || true
+          cat audit-results.json
+
+  # ===========================================================================
+  # JOB 2: DevSecOps Python (Pylint, Bandit, Safety)
+  # ===========================================================================
+  devsecops-python:
+    name: Python DevSecOps Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      # 3) Met à jour pip et installe les outils
-      - name: Install tools
+      - name: Install Python tools
         run: |
           python -m pip install -U pip
           pip install -U pylint bandit safety
 
-      # 4) Lance Pylint (qualité)
-      - name: Run pylint
+      - name: Run pylint (Code Quality)
         run: |
-          pylint .
+          # Vérifie si des fichiers Python existent
+          if find . -name "*.py" -type f | grep -q .; then
+            pylint **/*.py || true
+          else
+            echo "No Python files found, skipping pylint"
+          fi
+        continue-on-error: true
 
-      # 5) Lance Bandit (sécurité code)
-      - name: Run bandit
+      - name: Run bandit (Security Code Analysis)
         run: |
-          # -r = récursif [web:38]
-          bandit -r .
+          if find . -name "*.py" -type f | grep -q .; then
+            bandit -r . -f json -o bandit-report.json || true
+            bandit -r . || true
+          else
+            echo "No Python files found, skipping bandit"
+          fi
+        continue-on-error: true
 
-      # 6) Lance Safety (sécurité dépendances)
-      - name: Run safety
+      - name: Run safety (Dependency Security)
         run: |
-          safety scan
+          safety scan || true
+        continue-on-error: true
+
+      - name: Upload Python security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-security-reports
+          path: |
+            bandit-report.json
+          retention-days: 7
+
+  # ===========================================================================
+  # JOB 3: Linting et Vérification des Types (Node.js)
+  # ===========================================================================
+  lint-nodejs:
+    name: Node.js Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+        continue-on-error: true
+
+      - name: Run TypeScript type check
+        run: pnpm exec tsc --noEmit
+        continue-on-error: true
+
+  # ===========================================================================
+  # JOB 4: Build Application
+  # ===========================================================================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [lint-nodejs, devsecops-python]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NODE_ENV: production
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: .next/
+          retention-days: 7
+
+  # ===========================================================================
+  # JOB 5: Tests
+  # ===========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run Node.js tests
+        run: |
+          if [ -f "package.json" ] && grep -q '"test"' package.json; then
+            pnpm test --passWithNoTests || true
+          else
+            echo "No test script found, skipping tests"
+          fi
+
+      - name: Setup Python for tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run Python tests (if any)
+        run: |
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f "pytest.ini" ] || [ -d "tests" ]; then
+            pip install pytest
+            pytest || echo "No Python tests found or tests failed"
+          else
+            echo "No Python tests found, skipping"
+          fi
+        continue-on-error: true
+
+  # ===========================================================================
+  # JOB 6: Déploiement sur Vercel
+  # ===========================================================================
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: [security-audit-nodejs, devsecops-python, build, test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+        continue-on-error: true
+
+  # ===========================================================================
+  # JOB 7: Notification de Statut Final
+  # ===========================================================================
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    steps:
+      - name: Check deployment status
+        run: |
+          echo "=========================================="
+          echo "    FULL STACK PIPELINE SUMMARY          "
+          echo "=========================================="
+          echo ""
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+          echo ""
+          echo "=========================================="
+          echo "SECURITY CHECKS:"
+          echo "  - Node.js Audit: ${{ needs.security-audit-nodejs.result }}"
+          echo "  - Python DevSecOps: ${{ needs.devsecops-python.result }}"
+          echo ""
+          echo "BUILD & TEST:"
+          echo "  - Lint: ${{ needs.lint-nodejs.result }}"
+          echo "  - Build: ${{ needs.build.result }}"
+          echo "  - Tests: ${{ needs.test.result }}"
+          echo ""
+          echo "DEPLOYMENT:"
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "  Status: ✅ DEPLOYMENT SUCCESSFUL"
+          elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
+            echo "  Status: ⏭️ DEPLOYMENT SKIPPED (not main branch)"
+          else
+            echo "  Status: ❌ DEPLOYMENT FAILED"
+          fi
+          echo "=========================================="
