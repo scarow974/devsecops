@@ -395,32 +395,6 @@ jobs:
           retention-days: 7
 
   # ===========================================================================
-  # JOB 7: Container Security (si Docker)
-  # ===========================================================================
-  container-scan:
-    name: 🐳 Container Security
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  # ===========================================================================
   # JOB 8: Rapport Final
   # ===========================================================================
   security-report:
