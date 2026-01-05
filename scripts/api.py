@@ -11,7 +11,7 @@ qui sont automatiquement convertis en objets JavaScript par pywebview.
 =============================================================================
 """
 
-from database import DatabaseManager
+from database import DatabaseManager 
 
 
 class Api:
