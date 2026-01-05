@@ -1,4 +1,4 @@
-# ShopPro - Application E-commerce avec PyWebView
+# MarketFlow - Application E-commerce avec PyWebView
 
 Application e-commerce complète développée en Python avec PyWebView pour l'interface graphique et des fichiers CSV pour la persistance des données.
 
