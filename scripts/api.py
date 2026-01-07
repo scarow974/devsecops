@@ -55,6 +55,18 @@ class Api:
                 'message': 'Email ou mot de passe incorrect'
             }
     
+    def check_password_pwned(self, password: str) -> dict:
+        """
+        Vérifie si un mot de passe est compromis via l'API HaveIBeenPwned.
+        Cette méthode est appelée avant l'inscription pour avertir l'utilisateur.
+        """
+        result = self.db.check_password_compromised(password)
+        return {
+            'compromised': result['compromised'],
+            'count': result['count'],
+            'error': result['error']
+        }
+    
     def register(self, email: str, password: str, firstname: str, 
                 lastname: str, role: str = 'client') -> dict:
         """Inscrit un nouvel utilisateur (toujours en tant que client)."""
