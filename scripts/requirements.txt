@@ -1,1 +1,19 @@
+# =============================================================================
+# DÉPENDANCES PRINCIPALES - MarketFlow
+# =============================================================================
+# Ce fichier contient les dépendances nécessaires pour l'application
+# Installation: pip install -r requirements.txt
+# =============================================================================
+
+# Interface graphique PyWebView
 pywebview>=4.0
+
+# Visualisations statistiques (Module 5)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# API REST Flask (Module 6)
+flask>=2.3.0
+
+# Sécurité (si besoin d'extensions)
+# bcrypt>=4.0.0  # Alternative plus sécurisée pour le hachage
