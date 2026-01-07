@@ -20,6 +20,8 @@ import secrets
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
+import urllib.request
+import urllib.error
 
 
 class DatabaseManager:
@@ -123,7 +125,7 @@ class DatabaseManager:
                 '899.99',
                 '20',
                 'Tablettes',
-                'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400',
+                'https://images.unsplash.com/photo-1544244015092-5e560c06d30e?w=400',
                 '2'),
 
 
@@ -140,7 +142,7 @@ class DatabaseManager:
                 '699.99',
                 '12',
                 'Maison',
-                'https://images.unsplash.com/photo-1558317374-067fb5f30001?w=400',
+                'https://images.unsplash.com/photo-1558317374067-29a1b244cc32?w=400',
                 '3'),
 
                 ('Montre Garmin Fenix 7',
@@ -245,6 +247,77 @@ class DatabaseManager:
         password_hash = hashlib.sha256(f"{password}{salt}".encode()).hexdigest()
         return password_hash, salt
 
+    def check_password_compromised(self, password: str) -> dict:
+        """
+        Vérifie si un mot de passe est compromis en utilisant l'API HaveIBeenPwned.
+        Utilise le protocole k-Anonymity pour ne pas envoyer le mot de passe complet.
+        
+        Retourne:
+            dict: {
+                'compromised': bool,
+                'count': int (nombre de fois trouvé dans les fuites),
+                'error': str ou None
+            }
+        """
+        try:
+            # Hash SHA-1 du mot de passe (requis par l'API)
+            sha1_hash = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
+            
+            # Préfixe (5 premiers caractères) et suffixe
+            prefix = sha1_hash[:5]
+            suffix = sha1_hash[5:]
+            
+            # Appel à l'API HaveIBeenPwned avec k-Anonymity
+            url = f"https://api.pwnedpasswords.com/range/{prefix}"
+            
+            # Configuration de la requête avec User-Agent
+            request = urllib.request.Request(
+                url,
+                headers={
+                    'User-Agent': 'MarketFlow-PasswordChecker/1.0',
+                    'Add-Padding': 'true'
+                }
+            )
+            
+            # Exécution de la requête avec timeout
+            with urllib.request.urlopen(request, timeout=5) as response:
+                data = response.read().decode('utf-8')
+            
+            # Parcours des résultats pour trouver le suffixe
+            for line in data.splitlines():
+                parts = line.split(':')
+                if len(parts) == 2:
+                    hash_suffix, count = parts
+                    if hash_suffix.upper() == suffix:
+                        count_int = int(count)
+                        print(f"[SECURITY] Mot de passe compromis détecté! Trouvé {count_int} fois dans les fuites.")
+                        return {
+                            'compromised': True,
+                            'count': count_int,
+                            'error': None
+                        }
+            
+            print("[SECURITY] Mot de passe non compromis.")
+            return {
+                'compromised': False,
+                'count': 0,
+                'error': None
+            }
+            
+        except urllib.error.URLError as e:
+            print(f"[SECURITY] Erreur réseau lors de la vérification: {e}")
+            return {
+                'compromised': False,
+                'count': 0,
+                'error': f"Impossible de vérifier (erreur réseau): {str(e)}"
+            }
+        except Exception as e:
+            print(f"[SECURITY] Erreur lors de la vérification du mot de passe: {e}")
+            return {
+                'compromised': False,
+                'count': 0,
+                'error': f"Erreur lors de la vérification: {str(e)}"
+            }
 
     def create_user(self, email: str, password: str, firstname: str,
                    lastname: str, role: str = 'client') -> Optional[Dict]:
@@ -254,6 +327,12 @@ class DatabaseManager:
         for user in users:
             if user['email'].lower() == email.lower():
                 return None
+
+        # Vérifie si le mot de passe est compromis
+        password_check = self.check_password_compromised(password)
+        if password_check['compromised']:
+            print(f"[SECURITY] Mot de passe compromis pour {email}.")
+            return None
 
         password_hash, salt = self._hash_password(password)
 
