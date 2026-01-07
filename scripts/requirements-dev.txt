@@ -1,0 +1,41 @@
+# =============================================================================
+# DÉPENDANCES DE DÉVELOPPEMENT - MarketFlow
+# =============================================================================
+# Ce fichier contient les outils de développement, test et audit de sécurité
+# Installation: pip install -r requirements-dev.txt
+# =============================================================================
+
+# ============= AUDIT DE SÉCURITÉ =============
+# Bandit - Analyse de vulnérabilités du code Python
+bandit>=1.7.0
+
+# Safety - Vérification des dépendances vulnérables
+safety>=2.3.0
+
+# ============= QUALITÉ DU CODE =============
+# Pylint - Analyse statique complète
+pylint>=3.0.0
+
+# Flake8 - Vérification du style PEP8
+flake8>=6.1.0
+
+# Black - Formatage automatique du code
+black>=23.0.0
+
+# isort - Tri des imports
+isort>=5.12.0
+
+# ============= TESTS =============
+# Pytest - Framework de tests
+pytest>=7.4.0
+
+# Pytest-cov - Couverture de code
+pytest-cov>=4.1.0
+
+# ============= DOCUMENTATION =============
+# Sphinx - Génération de documentation
+# sphinx>=7.0.0
+
+# ============= TYPES =============
+# Mypy - Vérification des types
+mypy>=1.5.0
