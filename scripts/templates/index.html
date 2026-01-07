@@ -2379,13 +2379,25 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Mot de passe</label>
-                        <input type="password" id="register-password" class="form-input" placeholder="Minimum 8 caractères" required minlength="8">
+                        <input type="password" id="register-password" class="form-input" placeholder="Minimum 8 caractères" required minlength="8" oninput="checkPasswordStrength(this.value)">
+                        <!-- Ajout indicateur de sécurité du mot de passe -->
+                        <div id="password-strength-container" style="margin-top: var(--space-sm);">
+                            <div id="password-strength-bar" style="height: 4px; background: var(--gray-200); border-radius: 2px; overflow: hidden;">
+                                <div id="password-strength-fill" style="height: 100%; width: 0%; transition: all 0.3s ease;"></div>
+                            </div>
+                            <div id="password-strength-text" style="font-size: var(--font-xs); margin-top: var(--space-xs); color: var(--gray-500);"></div>
+                        </div>
+                        <!-- Alerte mot de passe compromis -->
+                        <div id="password-pwned-alert" class="hidden" style="margin-top: var(--space-sm); padding: var(--space-sm) var(--space-md); background: #fee2e2; border: 1px solid #fca5a5; border-radius: var(--radius-md); color: #991b1b; font-size: var(--font-sm);">
+                            <i class="bi bi-exclamation-triangle-fill" style="margin-right: var(--space-xs);"></i>
+                            <span id="password-pwned-message"></span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Confirmer le mot de passe</label>
                         <input type="password" id="register-confirm" class="form-input" placeholder="Confirmez votre mot de passe" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-full btn-lg">
+                    <button type="submit" id="register-submit-btn" class="btn btn-primary w-full btn-lg">
                         <i class="bi bi-person-plus"></i> Créer mon compte
                     </button>
                     <p style="margin-top: var(--space-md); font-size: var(--font-sm); color: var(--gray-500); text-align: center;">
@@ -2684,13 +2696,7 @@
            ================================================================= */
         
         async function renderSellerDashboard(section = 'overview') {
-            let productsResult;
-            if (State.user.role === 'admin') {
-                productsResult = await api('get_all_products_admin');
-            } else {
-                productsResult = await api('get_seller_products');
-            }
-            
+            const productsResult = await api('get_seller_products');
             const ordersResult = await api('get_all_orders');
             
             const products = productsResult.products || [];
@@ -3351,6 +3357,116 @@
             }
         }
 
+        let passwordCheckTimeout = null;
+        let isPasswordCompromised = false;
+
+        async function checkPasswordStrength(password) {
+            const strengthFill = document.getElementById('password-strength-fill');
+            const strengthText = document.getElementById('password-strength-text');
+            const pwnedAlert = document.getElementById('password-pwned-alert');
+            const pwnedMessage = document.getElementById('password-pwned-message');
+            const registerSubmitBtn = document.getElementById('register-submit-btn'); // Le bouton de soumission
+            
+            if (!strengthFill || !strengthText || !registerSubmitBtn) return;
+            
+            // Reset à la base
+            isPasswordCompromised = false;
+            pwnedAlert.classList.add('hidden');
+            registerSubmitBtn.disabled = false; // Réactiver le bouton par défaut
+            
+            // Calcul de la force du mot de passe
+            let strength = 0;
+            let feedback = [];
+            
+            if (password.length >= 8) strength += 25;
+            else feedback.push('au moins 8 caractères');
+            
+            if (/[a-z]/.test(password)) strength += 25;
+            else feedback.push('une minuscule');
+            
+            if (/[A-Z]/.test(password)) strength += 25;
+            else feedback.push('une majuscule');
+            
+            if (/[0-9]/.test(password) || /[^a-zA-Z0-9]/.test(password)) strength += 25;
+            else feedback.push('un chiffre ou symbole');
+            
+            // Mise à jour de l'affichage
+            strengthFill.style.width = strength + '%';
+            
+            if (strength <= 25) {
+              strengthFill.style.background = 'var(--error)';
+              strengthText.textContent = 'Faible - Ajoutez: ' + feedback.join(', ');
+              strengthText.style.color = 'var(--error)';
+            } else if (strength <= 50) {
+              strengthFill.style.background = 'var(--warning)';
+              strengthText.textContent = 'Moyen - Ajoutez: ' + feedback.join(', ');
+              strengthText.style.color = 'var(--warning)';
+            } else if (strength <= 75) {
+              strengthFill.style.background = '#22c55e';
+              strengthText.textContent = 'Bon' + (feedback.length ? ' - Ajoutez: ' + feedback.join(', ') : '');
+              strengthText.style.color = '#22c55e';
+            } else {
+              strengthFill.style.background = '#16a34a';
+              strengthText.textContent = 'Excellent!';
+              strengthText.style.color = '#16a34a';
+            }
+            
+            // Vérification de la compromission avec debounce
+            if (password.length >= 6) { // Ne vérifier que si le mot de passe a au moins 6 caractères
+              if (passwordCheckTimeout) clearTimeout(passwordCheckTimeout);
+              
+              passwordCheckTimeout = setTimeout(async () => {
+                try {
+                  strengthText.textContent = 'Vérification de la sécurité...';
+                  strengthText.style.color = 'var(--info)';
+                  
+                  const result = await api('check_password_pwned', password);
+                  
+                  if (result.compromised) {
+                    isPasswordCompromised = true;
+                    pwnedAlert.classList.remove('hidden');
+                    pwnedMessage.textContent = `Ce mot de passe a été trouvé ${result.count.toLocaleString('fr-FR')} fois dans des fuites de données. Il est fortement recommandé d'en choisir un autre!`;
+                    strengthFill.style.background = 'var(--error)';
+                    strengthText.textContent = 'Mot de passe compromis!';
+                    strengthText.style.color = 'var(--error)';
+                    registerSubmitBtn.disabled = true; // Désactiver le bouton si compromis
+                  } else {
+                    isPasswordCompromised = false;
+                    pwnedAlert.classList.add('hidden');
+                    // Restaurer le message de force si ce n'est pas compromis
+                    if (strength === 100) {
+                      strengthText.textContent = 'Excellent! Mot de passe sécurisé.';
+                      strengthText.style.color = '#16a34a';
+                    }
+                    registerSubmitBtn.disabled = false; // Assurer que le bouton est réactivé
+                  }
+                  
+                  if (result.error) {
+                    console.warn('Erreur vérification mot de passe:', result.error);
+                    strengthText.textContent = 'Erreur lors de la vérification de sécurité.';
+                    strengthText.style.color = 'var(--error)';
+                    registerSubmitBtn.disabled = false; // Réactiver en cas d'erreur
+                  }
+                } catch (e) {
+                  console.error('Erreur lors de la vérification du mot de passe:', e);
+                  strengthText.textContent = 'Erreur lors de la vérification de sécurité.';
+                  strengthText.style.color = 'var(--error)';
+                  registerSubmitBtn.disabled = false; // Réactiver en cas d'erreur
+                }
+              }, 500); // Debounce de 500ms
+            } else {
+              // Si le mot de passe est trop court pour la vérification pwned, s'assurer que les messages sont clairs et le bouton activé
+              pwnedAlert.classList.add('hidden');
+              isPasswordCompromised = false;
+              registerSubmitBtn.disabled = false; // Assurer que le bouton est réactivé
+              if (strength === 100) { // Restaurer le message "Excellent" seulement si la force est au max et le mot de passe est long
+                strengthText.textContent = 'Excellent!';
+                strengthText.style.color = '#16a34a';
+              }
+            }
+        }
+
+
         async function handleRegister(event) {
             event.preventDefault();
             const email = document.getElementById('register-email').value;
@@ -3362,6 +3478,13 @@
             if (password !== confirm) {
                 showToast('Les mots de passe ne correspondent pas', 'error');
                 return;
+            }
+            
+            if (isPasswordCompromised) {
+                const confirmUse = confirm('Ce mot de passe a été trouvé dans des fuites de données. Il est fortement recommandé d\'en choisir un autre pour votre sécurité. Voulez-vous vraiment continuer?');
+                if (!confirmUse) {
+                    return; // Arrêter l'inscription si l'utilisateur refuse
+                }
             }
             
             const result = await api('register', email, password, firstname, lastname, 'client');
