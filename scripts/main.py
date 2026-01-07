@@ -4,9 +4,6 @@ APPLICATION E-COMMERCE PYWEBVIEW - MARKETFLOW
 =============================================================================
 Point d'entrée principal de l'application.
 Lance l'interface graphique avec pywebview.
-
-Auteur: v0
-Date: 2025
 =============================================================================
 """
 
